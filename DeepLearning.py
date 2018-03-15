@@ -58,14 +58,18 @@ def derivative(activation,x):
 
 def backward_propagation(w, b, a, z, x, y, alpha, hidden_activation):
 
-    dw = w
-    db = b
-    dz = z
+    dw = []
+    db = []
+    dz = []
 
     layers = len(w)
 
+    for i in range(layers):
+        dw.append(np.copy(w[i]))
+        db.append(np.copy(b[i]))
+        dz.append(np.copy(z[i]))
+
     dz[layers-1] = a[layers-1] - y
-    q = (np.shape(dz[layers-1]))[1]
     dw[layers-1] = dz[layers-1].dot(a[layers - 2].T) / (np.shape(dz[layers-1]))[1]
     db[layers-1] = np.sum(dz[layers-1], axis=1) / (np.shape(dz[layers-1]))[1]
     for i in range(layers-2, 0, -1):
@@ -78,7 +82,8 @@ def backward_propagation(w, b, a, z, x, y, alpha, hidden_activation):
     db[0] =  np.sum(dz[0], axis=1) / (np.shape(dz[0]))[1]
     for j in range(layers):
         w[j] = w[j] - alpha * dw[j]
-        b[j] = b[j] - alpha * db[j]
+        # db[j] is 1d array, transpose b[j] so the broadcast is happy
+        b[j] = b[j].T - alpha * db[j]
         b[j] = b[j].T
 
     return [w, b]
