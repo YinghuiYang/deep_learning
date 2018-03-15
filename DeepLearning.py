@@ -1,5 +1,7 @@
 import numpy as np
 
+
+# weight initialization
 def weight_initialization(layer_dimension):
     w = []
     for i in range(1, len(layer_dimension)):
@@ -7,6 +9,7 @@ def weight_initialization(layer_dimension):
 
     return w
 
+# bias initialization
 def b_initialization(layer_dimension):
     b = []
     for i in range(1,len(layer_dimension)):
@@ -19,7 +22,7 @@ def cost(a, y):
 
 def activation(string,x):
     if string=="relu":
-        return 1*(x>0)
+        return abs(x)*(x>0)
     elif string=="tanh":
         return np.tanh(x)
     elif string=="sigmoid":
@@ -76,5 +79,6 @@ def backward_propagation(w, b, a, z, x, y, alpha, hidden_activation):
     for j in range(layers):
         w[j] = w[j] - alpha * dw[j]
         b[j] = b[j] - alpha * db[j]
+        b[j] = b[j].T
 
     return [w, b]
