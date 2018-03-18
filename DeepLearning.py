@@ -17,7 +17,7 @@ def b_initialization(layer_dimension):
     return b
 
 def cost(a, y):
-    cost =  - np.sum(y * np.log(a) + (1-y)*np.log(1-a))/len(y)
+    cost =  - np.sum(y * np.log(a) + (1-y)*np.log(1-a))/np.size(y)
     return cost
 
 def activation(string,x):
@@ -82,6 +82,112 @@ def backward_propagation(w, b, a, z, x, y, alpha, hidden_activation):
     dz[0] = w[1].T.dot(dz[1])*derivative(hidden_activation, z[0])
     dw[0] = np.dot(dz[0],x.T)/m
     db[0] =  np.sum(dz[0], axis=1)/m
+
+    for j in range(layers):
+        w[j] = w[j] - alpha * dw[j]
+        # db[j] is 1d array, transpose b[j] so the broadcast is happy
+        b[j] = b[j].T - alpha * db[j]
+        b[j] = b[j].T
+
+    return [w, b]
+
+def l2_regularized_cost(cof, w, a, y):
+    cost = (cof/2)*np.dot(w,w.T) - np.sum(y * np.log(a) + (1-y)*np.log(1-a))/np.size(y)
+    cost = cost[0,0]
+    return cost
+
+
+def l2_regularized_backward_propagation(w, b, a, z, x, y, alpha, cof, hidden_activation):
+
+    dw = []
+    db = []
+    dz = []
+
+    layers = len(w)
+    m = len(y)
+
+    for i in range(layers):
+        dw.append(np.zeros(np.shape(w[i])))
+        db.append(np.zeros(np.shape(b[i])))
+        dz.append(np.zeros(np.shape(z[i])))
+
+    dz[layers-1] = a[layers-1] - y
+    dw[layers-1] = cof*w[layers-1] + np.dot(dz[layers-1],a[layers - 2].T)/m
+    db[layers-1] = np.sum(dz[layers-1], axis=1)/m
+
+    for i in range(layers-2, 0, -1):
+        dz[i] = np.dot(w[i+1].T,dz[i+1])*derivative(hidden_activation,z[i])
+        dw[i] = cof*w[i] + np.dot(dz[i],a[i-1].T)/m
+        db[i] = np.sum(dz[i], axis=1)/m
+
+    dz[0] = w[1].T.dot(dz[1])*derivative(hidden_activation, z[0])
+    dw[0] = cof*w[0] + np.dot(dz[0],x.T)/m
+    db[0] = np.sum(dz[0], axis=1)/m
+
+    for j in range(layers):
+        w[j] = w[j] - alpha * dw[j]
+        # db[j] is 1d array, transpose b[j] so the broadcast is happy
+        b[j] = b[j].T - alpha * db[j]
+        b[j] = b[j].T
+
+    return [w, b]
+
+
+def drop_out_init(p, m, dim):
+    d = []
+    for i in range(1, len(dim)):
+        temp = np.random.rand(dim[i],m)
+        temp = 1*(temp>p)
+        d.append(temp)
+
+    return d
+
+def drop_forward_propagation(w, b, x, d, p, hidden_activation, output_activation):
+    a = []
+    z = []
+
+    layers = len(w)
+
+    z.append(np.dot(w[0],x) + b[0])
+    a.append(activation(hidden_activation, z[0])*d[0]/p)
+
+    for i in range(1,layers-1):
+        z.append(np.dot(w[i],a[i-1])+b[i])
+        a.append(activation(hidden_activation, z[i])*d[i]/p)
+
+    z.append(np.dot(w[layers-1],a[layers-2])+b[layers-1])
+    a.append(activation(output_activation,z[layers-1]))
+    return [a, z]
+
+def drop_backward_propagation(w, b, a, z, x, y, d, alpha, p, hidden_activation):
+    da = []
+    dw = []
+    db = []
+    dz = []
+
+    layers = len(w)
+    m = len(y)
+
+    for i in range(layers):
+        da.append(np.zeros(np.shape(a[i])))
+        dw.append(np.zeros(np.shape(w[i])))
+        db.append(np.zeros(np.shape(b[i])))
+        dz.append(np.zeros(np.shape(z[i])))
+
+    dz[layers-1] = a[layers-1] - y
+    dw[layers-1] = np.dot(dz[layers-1],a[layers - 2].T)/m
+    db[layers-1] = np.sum(dz[layers-1], axis=1)/m
+
+    for i in range(layers-2, 0, -1):
+        da[i] = np.dot(w[i+1].T,dz[i+1])*d[i]/p
+        dz[i] = da[i]*derivative(hidden_activation,z[i])
+        dw[i] = np.dot(dz[i],a[i-1].T)/m
+        db[i] = np.sum(dz[i], axis=1)/m
+
+    da[0] = np.dot(w[1].T, dz[1]) * d[0] / p
+    dz[0] = da[0]*derivative(hidden_activation, z[0])
+    dw[0] = np.dot(dz[0],x.T)/m
+    db[0] = np.sum(dz[0], axis=1)/m
 
     for j in range(layers):
         w[j] = w[j] - alpha * dw[j]
