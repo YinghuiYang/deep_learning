@@ -2,10 +2,10 @@ import numpy as np
 
 
 # weight initialization
-def weight_initialization(layer_dimension):
+def weight_initialization(layer_dimension, sample):
     w = []
     for i in range(1, len(layer_dimension)):
-        w.append(np.random.rand(layer_dimension[i], layer_dimension[i-1])/5)
+        w.append(np.random.normal(0, 1/np.sqrt(sample),(layer_dimension[i], layer_dimension[i-1])))
 
     return w
 
@@ -133,6 +133,7 @@ def l2_regularized_backward_propagation(w, b, a, z, x, y, alpha, cof, hidden_act
     return [w, b]
 
 
+# p: drop out probability
 def drop_out_init(p, m, dim):
     d = []
     for i in range(1, len(dim)):
@@ -196,3 +197,47 @@ def drop_backward_propagation(w, b, a, z, x, y, d, alpha, p, hidden_activation):
         b[j] = b[j].T
 
     return [w, b]
+
+def gradient(w, b, a, z, x, y, hidden_activation):
+    dw = []
+    db = []
+    dz = []
+
+    layers = len(w)
+    m = len(y)
+
+    for i in range(layers):
+        dw.append(np.zeros(np.shape(w[i])))
+        db.append(np.zeros(np.shape(b[i])))
+        dz.append(np.zeros(np.shape(z[i])))
+
+    dz[layers-1] = a[layers-1] - y
+    dw[layers-1] = np.dot(dz[layers-1],a[layers - 2].T)/m
+    db[layers-1] = np.sum(dz[layers-1], axis=1)/m
+
+    for i in range(layers-2, 0, -1):
+        dz[i] = np.dot(w[i+1].T,dz[i+1])*derivative(hidden_activation,z[i])
+        dw[i] = np.dot(dz[i],a[i-1].T)/m
+        db[i] = np.sum(dz[i], axis=1)/m
+
+    dz[0] = w[1].T.dot(dz[1])*derivative(hidden_activation, z[0])
+    dw[0] = np.dot(dz[0],x.T)/m
+    db[0] =  np.sum(dz[0], axis=1)/m
+
+    return dw,db
+
+def momentum(w,b,a,z,x,y,alpha,gamma):
+    dw,db = gradient(w, b, a, z, x, y, "relu")
+    velocity_w = []
+    velocity_b = []
+    for i in range(len(w)):
+        velocity_w.append(np.zeros_like(w[i]))
+        velocity_b.append(np.zeros_like(b[i]))
+
+    for j in range(len(w)):
+        w[j] = w[j] + (alpha*velocity_w[j]-gamma * dw[j])
+        b[j] = b[j].T + (alpha * velocity_b[j].T - gamma * db[j])
+        b[j] = b[j].T
+
+    return w,b
+
