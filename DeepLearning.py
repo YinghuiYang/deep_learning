@@ -54,10 +54,7 @@ def derivative(activation,x):
         return (1 / (1 + np.exp(-x)))*(1-(1 / (1 + np.exp(-x))))
 
 
-
-
-def backward_propagation(w, b, a, z, x, y, alpha, hidden_activation):
-
+def gradient(w, b, a, z, x, y, hidden_activation):
     dw = []
     db = []
     dz = []
@@ -81,13 +78,24 @@ def backward_propagation(w, b, a, z, x, y, alpha, hidden_activation):
 
     dz[0] = w[1].T.dot(dz[1])*derivative(hidden_activation, z[0])
     dw[0] = np.dot(dz[0],x.T)/m
-    db[0] =  np.sum(dz[0], axis=1)/m
+    db[0] = np.sum(dz[0], axis=1)/m
+
+    return dw,db
+
+
+
+def backward_propagation(w, b, dw, db, alpha):
+
+    layers = len(w)
 
     for j in range(layers):
         w[j] = w[j] - alpha * dw[j]
         # db[j] is 1d array, transpose b[j] so the broadcast is happy
-        b[j] = b[j].T - alpha * db[j]
-        b[j] = b[j].T
+        if np.shape(b[j]) != np.shape(db[j]):
+            b[j] = b[j].T - alpha * db[j]
+            b[j] = b[j].T
+        else:
+            b[j] = b[j] - alpha*db[j]
 
     return [w, b]
 
@@ -198,46 +206,23 @@ def drop_backward_propagation(w, b, a, z, x, y, d, alpha, p, hidden_activation):
 
     return [w, b]
 
-def gradient(w, b, a, z, x, y, hidden_activation):
-    dw = []
-    db = []
-    dz = []
 
-    layers = len(w)
-    m = len(y)
-
-    for i in range(layers):
-        dw.append(np.zeros(np.shape(w[i])))
-        db.append(np.zeros(np.shape(b[i])))
-        dz.append(np.zeros(np.shape(z[i])))
-
-    dz[layers-1] = a[layers-1] - y
-    dw[layers-1] = np.dot(dz[layers-1],a[layers - 2].T)/m
-    db[layers-1] = np.sum(dz[layers-1], axis=1)/m
-
-    for i in range(layers-2, 0, -1):
-        dz[i] = np.dot(w[i+1].T,dz[i+1])*derivative(hidden_activation,z[i])
-        dw[i] = np.dot(dz[i],a[i-1].T)/m
-        db[i] = np.sum(dz[i], axis=1)/m
-
-    dz[0] = w[1].T.dot(dz[1])*derivative(hidden_activation, z[0])
-    dw[0] = np.dot(dz[0],x.T)/m
-    db[0] =  np.sum(dz[0], axis=1)/m
-
-    return dw,db
-
-def momentum(w,b,a,z,x,y,alpha,gamma):
-    dw,db = gradient(w, b, a, z, x, y, "relu")
-    velocity_w = []
-    velocity_b = []
-    for i in range(len(w)):
-        velocity_w.append(np.zeros_like(w[i]))
-        velocity_b.append(np.zeros_like(b[i]))
-
+def momentum(w,b,dw,db, velocity_w, velocity_b, alpha,gamma):
     for j in range(len(w)):
-        w[j] = w[j] + (alpha*velocity_w[j]-gamma * dw[j])
-        b[j] = b[j].T + (alpha * velocity_b[j].T - gamma * db[j])
+        velocity_w[j] = alpha*velocity_w[j]-gamma * dw[j]
+        velocity_b[j] = alpha * velocity_b[j].T - gamma * db[j]
+    for j in range(len(w)):
+        w[j] = w[j] + velocity_w[j]
+        b[j] = b[j].T + velocity_b[j]
         b[j] = b[j].T
 
-    return w,b
+    return w,b,velocity_w,velocity_b
+
+
+def accuracy(a,y):
+    a = 1*(a>0.5)
+    inacc = np.absolute(y-a)
+    miss = np.sum(inacc)
+    return 1 - miss/np.size(y)
+
 
